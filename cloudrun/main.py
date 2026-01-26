@@ -101,9 +101,12 @@ def handle():
 
     # --- List new uploads ---
     q = (
-        f"'{uploads_folder_id}' in parents and trashed = false and "
-        "(mimeType='image/jpeg' or mimeType='image/png')"
+        f"'{uploads_folder_id}' in parents and trashed = false and ("
+        "mimeType='image/jpeg' or mimeType='image/png' or "
+        "mimeType='image/heic' or mimeType='image/heif'"
+        ")"
     )
+
     resp = drive.files().list(
         q=q,
         fields="files(id,name,createdTime,webViewLink)",
