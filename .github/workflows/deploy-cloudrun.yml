@@ -14,6 +14,13 @@ jobs:
       contents: read
       id-token: write
 
+    env:
+      PROJECT_ID: artful-lane-485410-j1
+      REGION: us-central1
+      SERVICE: site-processor
+      AR_REPO: cloud-run-source-deploy
+      IMAGE: us-central1-docker.pkg.dev/artful-lane-485410-j1/cloud-run-source-deploy/site-processor
+
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -27,9 +34,14 @@ jobs:
       - name: Set up gcloud
         uses: google-github-actions/setup-gcloud@v2
 
-      - name: Deploy
+      - name: Build image with Cloud Build
         run: |
-          gcloud run deploy site-processor \
-            --source ./cloudrun \
-            --region us-central1 \
+          gcloud config set project "${PROJECT_ID}"
+          gcloud builds submit ./cloudrun --tag "${IMAGE}:${GITHUB_SHA}"
+
+      - name: Deploy to Cloud Run
+        run: |
+          gcloud run deploy "${SERVICE}" \
+            --image "${IMAGE}:${GITHUB_SHA}" \
+            --region "${REGION}" \
             --concurrency 1
