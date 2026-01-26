@@ -81,7 +81,9 @@ gcloud run services describe site-processor \
 
 At this point, your code is successfuly in the Cloud Run!
 
-### Linking the code to a new spreadsheet or folder
+
+
+# Linking the code to a new spreadsheet or folder
 
 If you want to link your code to a new spreadsheet or folder, go to that file and share it with:
 
@@ -94,11 +96,11 @@ You can get the ID of a Google Drive file by looking in the URL when you open it
 The environment variables that are already preloaded include:
 
 
-UPLOADS_FOLDER_ID: 1PFDx20k8cZQm_y0fV7Zdr8kPctZLXG7U1_JoFHGYWEgR_AbfZfnapdxdU--pk--11YH-l1HN
-PROCESSED_FOLDER_ID: 1RyX7IsrhLQy0IvswpQxNftH4M_klNgOF
-SHEET_ID: 1q2P1NMU-32EnVptP62-FRcptAMaB6PioqsAUO8FtQPY
-SHEET_TAB: Locations
-WEBHOOK_SECRET: 14trees-6f3f1c9a8d8a4c1bb9c0a2e6a4d2f7c1
+- UPLOADS_FOLDER_ID: 1PFDx20k8cZQm_y0fV7Zdr8kPctZLXG7U1_JoFHGYWEgR_AbfZfnapdxdU--pk--11YH-l1HN
+- PROCESSED_FOLDER_ID: 1RyX7IsrhLQy0IvswpQxNftH4M_klNgOF
+- SHEET_ID: 1q2P1NMU-32EnVptP62-FRcptAMaB6PioqsAUO8FtQPY
+- SHEET_TAB: Locations
+- WEBHOOK_SECRET: 14trees-6f3f1c9a8d8a4c1bb9c0a2e6a4d2f7c1
 
 You only have to redeploy with enviroment variables if you want to change them.
 
@@ -134,6 +136,7 @@ This occurs by writing code in the Apps Script imbeded in the Google Form.
 
 The Google Form's Apps Script currently has the following code:
 
+```
 const CLOUD_RUN_URL = "https://site-processor-579264721246.us-central1.run.app";
 const WEBHOOK_SECRET = "14trees-6f3f1c9a8d8a4c1bb9c0a2e6a4d2f7c1";
 
@@ -156,8 +159,9 @@ function onFormSubmit(e) {
   console.log("Cloud Run status:", resp.getResponseCode());
   console.log(resp.getContentText());
 }
+```
 
-### Common issues
+# Common issues
 
 * “Reauthentication required / Please enter your password”
 
