@@ -1,0 +1,35 @@
+name: Deploy Cloud Run (site-processor)
+
+on:
+  push:
+    branches: ["main"]
+    paths:
+      - "cloudrun/**"
+      - ".github/workflows/deploy-cloudrun.yml"
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Auth to Google (WIF)
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: "projects/579264721246/locations/global/workloadIdentityPools/github-pool/providers/github-provider"
+          service_account: "github-cloudrun-deployer@artful-lane-485410-j1.iam.gserviceaccount.com"
+
+      - name: Set up gcloud
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Deploy
+        run: |
+          gcloud run deploy site-processor \
+            --source ./cloudrun \
+            --region us-central1 \
+            --concurrency 1
