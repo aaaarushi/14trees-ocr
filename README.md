@@ -1,6 +1,14 @@
-## Redeploy the code in the Cloud Run service
+# Running scripts with Cloud Run
 
-This documentation allows you to update the main Python file that the Cloud Run is deploying
+The goal of this project was to allow a user to upload an image via a Google Form, and then run a script on this file and input the information from the photo into a Google Sheets.
+
+The general pipeline is Google Forms file upload -> triggers an App Script within Google Forms -> makes a post request to the Cloud Run which contains the Python script -> Python script analyzes the image, moves the image from an unprocessed to a processed folder, and updates the image's information in a Google Sheets.
+
+This documentation allows you to update any of these steps.
+
+## Updating the file in Cloud Run
+
+Do this if you want to change the Python file that is being run in Cloud Run
 
 ### Open Terminal
 
@@ -17,7 +25,6 @@ Restart terminal
 Use the installer https://cloud.google.com/sdk/docs/install
 
 Restart terminal
-
 
 ### Initialize GCloud
 
@@ -82,19 +89,21 @@ gcloud run services describe site-processor \
 At this point, your code is successfuly in the Cloud Run!
 
 
+## Linking the existing Cloud Run code to a new spreadsheet or folder
 
-# Linking the code to a new spreadsheet or folder
+Do this if you want to change the Google files that are being edited by the Python script
+
+### Redeploy with new environment variables
 
 If you want to link your code to a new spreadsheet or folder, go to that file and share it with:
 
 cloudrun-site-processor@artful-lane-485410-j1.iam.gserviceaccount.com
 
-Then, copy the "ID" of that folder, file, or spreadsheet, and redeploy with new environment variables. 
+Then, copy the "ID" of that folder, file, or spreadsheet, and redeploy the Cloud Run with new environment variables. 
 
 You can get the ID of a Google Drive file by looking in the URL when you open it in a browser and the ID will be after /d/ or /folders/.
 
 The environment variables that are already preloaded include:
-
 
 - UPLOADS_FOLDER_ID: 1PFDx20k8cZQm_y0fV7Zdr8kPctZLXG7U1_JoFHGYWEgR_AbfZfnapdxdU--pk--11YH-l1HN
 - PROCESSED_FOLDER_ID: 1RyX7IsrhLQy0IvswpQxNftH4M_klNgOF
@@ -102,7 +111,7 @@ The environment variables that are already preloaded include:
 - SHEET_TAB: Locations
 - WEBHOOK_SECRET: 14trees-6f3f1c9a8d8a4c1bb9c0a2e6a4d2f7c1
 
-You only have to redeploy with enviroment variables if you want to change them.
+You only have to redeploy with enviroment variables if you want to change them or add an environment variable.
 
 ```bash
 gcloud run deploy site-processor \
@@ -115,7 +124,7 @@ UPLOADS_FOLDER_ID=...,PROCESSED_FOLDER_ID=...,SHEET_ID=...,SHEET_TAB=...,WEBHOOK
 
 This only applies to files in Google Drive. Other systems may need further API authentification. 
 
-### Test the deployed service
+### Test the deployed code
 
 Replace `<WEBHOOK_SECRET>` with the current secret value:
 
@@ -128,7 +137,11 @@ curl -s -X POST "https://site-processor-579264721246.us-central1.run.app" \
 
 Current secret value: 14trees-6f3f1c9a8d8a4c1bb9c0a2e6a4d2f7c1
 
-### Deploy service automatically
+## Deploying Cloud Run code automatically
+
+Generally, you can always send the POST request to Cloud Run from your terminal. If you want the Python script to run automatically, you can create a trigger from a Google Form submission
+
+### Google Form submission trigger
 
 Currently the service is deployed from a trigger created by a Google Form submission.
 
@@ -160,6 +173,8 @@ function onFormSubmit(e) {
   console.log(resp.getContentText());
 }
 ```
+
+Paste this same code into the Google Form that you are using.
 
 # Common issues
 
