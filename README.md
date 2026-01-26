@@ -1,13 +1,23 @@
-## Redeploy the Cloud Run service (manual)
+## Redeploy the code in the Cloud Run service
+
+This documentation allows you to update the main Python file that the Cloud Run is deploying
 
 ### Open Terminal
 
-### Install gcloud
+### Install gcloud with Homebrew
 
 ```bash
 brew install --cask google-cloud-sdk
 ```
+
 Restart terminal
+
+### Install gcloud if you don't have Homebrew
+
+Use the installer https://cloud.google.com/sdk/docs/install
+
+Restart terminal
+
 
 ### Initialize GCloud
 
@@ -69,13 +79,28 @@ gcloud run services describe site-processor \
   --format="value(status.url)"
 ```
 
+At this point, your code is successfuly in the Cloud Run!
+
 ### Linking the code to a new spreadsheet or folder
 
 If you want to link your code to a new spreadsheet or folder, go to that file and share it with:
 
 cloudrun-site-processor@artful-lane-485410-j1.iam.gserviceaccount.com
 
-Then, copy the "ID" of that folder, file, or spreadsheet, and redeploy with new environment variables:
+Then, copy the "ID" of that folder, file, or spreadsheet, and redeploy with new environment variables. 
+
+You can get the ID of a Google Drive file by looking in the URL when you open it in a browser and the ID will be after /d/ or /folders/.
+
+The environment variables that are already preloaded include:
+
+
+UPLOADS_FOLDER_ID: 1PFDx20k8cZQm_y0fV7Zdr8kPctZLXG7U1_JoFHGYWEgR_AbfZfnapdxdU--pk--11YH-l1HN
+PROCESSED_FOLDER_ID: 1RyX7IsrhLQy0IvswpQxNftH4M_klNgOF
+SHEET_ID: 1q2P1NMU-32EnVptP62-FRcptAMaB6PioqsAUO8FtQPY
+SHEET_TAB: Locations
+WEBHOOK_SECRET: 14trees-6f3f1c9a8d8a4c1bb9c0a2e6a4d2f7c1
+
+You only have to redeploy with enviroment variables if you want to change them.
 
 ```bash
 gcloud run deploy site-processor \
@@ -103,7 +128,11 @@ Current secret value: 14trees-6f3f1c9a8d8a4c1bb9c0a2e6a4d2f7c1
 
 ### Deploy service automatically
 
-Currently the service is deployed from a Google Form submission with the following Apps Script.
+Currently the service is deployed from a trigger created by a Google Form submission.
+
+This occurs by writing code in the Apps Script imbeded in the Google Form.
+
+The Google Form's Apps Script currently has the following code:
 
 const CLOUD_RUN_URL = "https://site-processor-579264721246.us-central1.run.app";
 const WEBHOOK_SECRET = "14trees-6f3f1c9a8d8a4c1bb9c0a2e6a4d2f7c1";
