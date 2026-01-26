@@ -1,0 +1,139 @@
+## Redeploy the Cloud Run service (manual)
+
+### Open Terminal
+
+### Install gcloud
+
+```bash
+brew install --cask google-cloud-sdk
+```
+Restart terminal
+
+### Initialize GCloud
+
+```bash
+gcloud init
+```
+
+Follow the browser login with
+
+user: tech1@14trees.org
+pw: 14TreesPune
+
+Select the project: artful-lane-485410-j1
+
+
+### Confirm you are in the correct Google Cloud project
+
+```bash
+gcloud auth list
+gcloud config get-value project
+```
+
+If the project is not `artful-lane-485410-j1`, set it:
+
+```bash
+gcloud config set project artful-lane-485410-j1
+```
+
+### Go to the Cloud Run service directory
+
+The deployable service lives in the `cloudrun/` folder of the repo:
+
+(`cd` to that your location’s `cloudrun/` folder)
+
+### Pull the latest code from GitHub
+
+Do this if someone else may have pushed changes:
+
+```bash
+git pull
+```
+
+### Redeploy the service (code-only redeploy)
+
+This redeploys the code and keeps existing Cloud Run environment variables:
+
+```bash
+gcloud run deploy site-processor \
+  --source . \
+  --region us-central1 \
+  --concurrency 1
+```
+
+### Confirm deploy succeeded and get the service URL
+
+```bash
+gcloud run services describe site-processor \
+  --region us-central1 \
+  --format="value(status.url)"
+```
+
+### Linking the code to a new spreadsheet or folder
+
+If you want to link your code to a new spreadsheet or folder, go to that file and share it with:
+
+cloudrun-site-processor@artful-lane-485410-j1.iam.gserviceaccount.com
+
+Then, copy the "ID" of that folder, file, or spreadsheet, and redeploy with new environment variables:
+
+```bash
+gcloud run deploy site-processor \
+  --source . \
+  --region us-central1 \
+  --concurrency 1 \
+  --set-env-vars \
+UPLOADS_FOLDER_ID=...,PROCESSED_FOLDER_ID=...,SHEET_ID=...,SHEET_TAB=...,WEBHOOK_SECRET=...
+```
+
+This only applies to files in Google Drive. Other systems may need further API authentification. 
+
+### Test the deployed service
+
+Replace `<WEBHOOK_SECRET>` with the current secret value:
+
+```bash
+curl -s -X POST "https://site-processor-579264721246.us-central1.run.app" \
+  -H "Content-Type: application/json" \
+  -H "X-Webhook-Secret: <WEBHOOK_SECRET>" \
+  | python3 -m json.tool
+```
+
+Current secret value: 14trees-6f3f1c9a8d8a4c1bb9c0a2e6a4d2f7c1
+
+### Deploy service automatically
+
+Currently the service is deployed from a Google Form submission with the following Apps Script.
+
+const CLOUD_RUN_URL = "https://site-processor-579264721246.us-central1.run.app";
+const WEBHOOK_SECRET = "14trees-6f3f1c9a8d8a4c1bb9c0a2e6a4d2f7c1";
+
+function onFormSubmit(e) {
+  const payload = {
+    source: "apps_script_onFormSubmit",
+    submittedAt: new Date().toISOString(),
+  };
+
+  const resp = UrlFetchApp.fetch(CLOUD_RUN_URL, {
+    method: "post",
+    contentType: "application/json",
+    headers: {
+      "X-Webhook-Secret": WEBHOOK_SECRET,
+    },
+    payload: JSON.stringify(payload),
+    muteHttpExceptions: true,
+  });
+
+  console.log("Cloud Run status:", resp.getResponseCode());
+  console.log(resp.getContentText());
+}
+
+### Common issues
+
+* “Reauthentication required / Please enter your password”
+
+  * This is your Mac login password (Keychain). Enter it and rerun the deploy.
+
+* Permission denied
+
+  * You need Cloud Run deploy permissions in the project (Project Owner/Editor or equivalent Cloud Run roles).
