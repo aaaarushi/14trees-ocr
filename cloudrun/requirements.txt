@@ -7,12 +7,8 @@ google-auth-httplib2==0.2.0
 google-auth-oauthlib==1.2.1
 gspread==6.1.2
 
+notion-client==2.2.1
+
 opencv-python-headless==4.10.0.84
 numpy==2.0.1
 Pillow==10.4.0
-
-# Optional (local OCR only, not recommended on Cloud Run):
-# pytesseract==0.3.13
-
-# Optional (recommended OCR):
-# google-cloud-vision==3.7.4
