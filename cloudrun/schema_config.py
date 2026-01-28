@@ -17,12 +17,14 @@ class SchemaField:
         name: str,
         field_type: FieldType,
         display_name: str = None,
-        description: str = None
+        description: str = None,
+        is_notion_title: bool = False
     ):
         self.name = name  # Document AI field name (snake_case)
         self.field_type = field_type
         self.display_name = display_name or name.replace("_", " ").title()
         self.description = description
+        self.is_notion_title = is_notion_title
     
     def to_notion_property(self) -> Dict[str, Any]:
         """Convert to Notion property format"""
@@ -40,7 +42,11 @@ class SchemaField:
     def format_value_for_notion(self, value: Any) -> Dict[str, Any]:
         """Format extracted value for Notion API"""
         if value is None:
-            return self.to_notion_property()
+            value = ""  # Use empty string instead of None for title fields
+        
+        # Handle title property specially
+        if self.is_notion_title:
+            return {"title": [{"text": {"content": str(value)}}]}
         
         if self.field_type == FieldType.TEXT:
             return {"rich_text": [{"text": {"content": str(value)}}]}
@@ -90,7 +96,8 @@ def _build_schema() -> List[SchemaField]:
             name=field_def["name"],
             field_type=FieldType(field_def["type"]),
             display_name=field_def.get("display_name"),
-            description=field_def.get("description")
+            description=field_def.get("description"),
+            is_notion_title=field_def.get("is_notion_title", False)
         ))
     return schema
 

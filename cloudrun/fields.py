@@ -34,7 +34,8 @@ FIELDS = [
         "name": "plot_name",
         "type": "text",
         "display_name": "Gairan",
-        "description": "Plot name in Devanagari script (Marathi)"
+        "description": "Plot name in Devanagari script (Marathi)",
+        "is_notion_title": True
     },
     {
         "name": "number_of_trees",
