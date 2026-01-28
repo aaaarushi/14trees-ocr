@@ -69,7 +69,7 @@ git pull
 
 ### Redeploy the service (code-only redeploy)
 
-This redeploys the code and keeps existing Cloud Run environment variables:
+This redeploys the code and keeps existing Cloud Run environment variables. Note you must be in the directory your main.py file is in:
 
 ```bash
 gcloud run deploy site-processor \

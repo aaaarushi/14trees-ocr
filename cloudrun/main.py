@@ -1,17 +1,16 @@
 import os
-from datetime import datetime, timezone
 
 from flask import Flask, jsonify, request
 from googleapiclient.discovery import build
 from google.auth import default
-from notion_client import Client as NotionClient
 
 import io
 from PIL import Image
 from PIL import ImageOps
 from googleapiclient.http import MediaIoBaseDownload, MediaInMemoryUpload
 
-
+from notion_utils import *
+from sheets_utils import *
 
 app = Flask(__name__)
 
@@ -19,49 +18,6 @@ app = Flask(__name__)
 def drive_client():
     creds, _ = default(scopes=["https://www.googleapis.com/auth/drive"])
     return build("drive", "v3", credentials=creds, cache_discovery=False)
-
-
-def sheets_client():
-    creds, _ = default(scopes=["https://www.googleapis.com/auth/spreadsheets"])
-    return build("sheets", "v4", credentials=creds, cache_discovery=False)
-
-
-def ensure_header(sheets, sheet_id: str, tab_name: str):
-    rng = f"{tab_name}!A1:D1"
-    resp = sheets.spreadsheets().values().get(
-        spreadsheetId=sheet_id, range=rng
-    ).execute()
-    values = resp.get("values", [])
-    if not values or not any(values[0]):
-        sheets.spreadsheets().values().update(
-            spreadsheetId=sheet_id,
-            range=rng,
-            valueInputOption="RAW",
-            body={"values": [["file_id", "file_name", "created_time", "drive_link"]]},
-        ).execute()
-
-
-def get_existing_file_ids(sheets, sheet_id: str, tab_name: str) -> set:
-    rng = f"{tab_name}!A2:A"
-    resp = sheets.spreadsheets().values().get(
-        spreadsheetId=sheet_id, range=rng
-    ).execute()
-    values = resp.get("values", [])
-    return {row[0] for row in values if row and row[0]}
-
-
-def append_rows(sheets, sheet_id: str, tab_name: str, rows: list) -> int:
-    if not rows:
-        return 0
-    rng = f"{tab_name}!A:D"
-    sheets.spreadsheets().values().append(
-        spreadsheetId=sheet_id,
-        range=rng,
-        valueInputOption="RAW",
-        insertDataOption="INSERT_ROWS",
-        body={"values": rows},
-    ).execute()
-    return len(rows)
 
 
 def move_file_to_folder(drive, file_id: str, processed_folder_id: str) -> bool:
@@ -85,30 +41,6 @@ def move_file_to_folder(drive, file_id: str, processed_folder_id: str) -> bool:
 def open_image(image_bytes: bytes) -> Image.Image:
     img = Image.open(io.BytesIO(image_bytes))
     return ImageOps.exif_transpose(img)
-
-def notion_client():
-    """
-    Returns a Notion client if env vars exist, else None.
-    """
-    api_key = os.environ.get("NOTION_API_KEY")
-    db_id = os.environ.get("NOTION_DATABASE_ID")
-    if not api_key or not db_id:
-        return None, None
-    return NotionClient(auth=api_key), db_id
-
-
-def create_notion_row(notion, notion_db_id: str, fid: str, name: str, created_time: str, drive_link: str) -> str:
-    page = notion.pages.create(
-        parent={"database_id": notion_db_id},
-        properties={
-            "File Name": {"title": [{"text": {"content": name or ""}}]},
-            "File ID": {"rich_text": [{"text": {"content": fid}}]},
-            "Created Time": {"date": {"start": created_time}},
-            "URL": {"url": drive_link},
-        },
-    )
-    return page["id"]
-
 
 def compress_to_jpeg_under_kb(image_bytes: bytes, max_kb: int = 300, max_dim: int = 1600) -> bytes:
     img = open_image(image_bytes)
@@ -181,17 +113,6 @@ def make_file_public_reader(drive, file_id: str) -> None:
 
 def drive_direct_image_url(file_id: str) -> str:
     return f"https://lh3.googleusercontent.com/d/{file_id}"
-
-
-
-def set_notion_cover_external(notion, page_id: str, image_url: str) -> None:
-    notion.pages.update(
-        page_id=page_id,
-        cover={
-            "type": "external",
-            "external": {"url": image_url},
-        },
-    )
 
 def download_drive_file_bytes(drive, file_id: str) -> bytes:
     req = drive.files().get_media(fileId=file_id, supportsAllDrives=True)
