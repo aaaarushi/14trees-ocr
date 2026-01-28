@@ -57,10 +57,10 @@ class SchemaField:
                 return {"number": None}
         elif self.field_type == FieldType.CHECKBOX:
             # Convert various truthy values to boolean
-            if isinstance(value, bool):
-                return {"checkbox": value}
-            if isinstance(value, str):
-                return {"checkbox": value.lower() in ("true", "yes", "1", "checked", "✓", "✔", "x")}
+            # if isinstance(value, bool):
+            #     return {"checkbox": value}                
+            # if isinstance(value, str):
+            #     return {"checkbox": value.lower() in ("true", "yes", "1", "checked", "✓", "✔", "x", "☑")}
             return {"checkbox": bool(value)}
     
     def format_value_for_sheets(self, value: Any) -> Any:
@@ -77,10 +77,10 @@ class SchemaField:
                 return ""
         elif self.field_type == FieldType.CHECKBOX:
             # Sheets checkboxes: TRUE/FALSE
-            if isinstance(value, bool):
-                return value
-            if isinstance(value, str):
-                return value.lower() in ("true", "yes", "1", "checked", "✓", "✔", "x")
+            # if isinstance(value, bool):
+            #     return value
+            # if isinstance(value, str):
+            #     return value.lower() in ("true", "yes", "1", "checked", "✓", "✔", "x", "☑")
             return bool(value)
 
 
