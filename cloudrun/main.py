@@ -9,6 +9,7 @@ from PIL import Image
 from PIL import ImageOps
 from googleapiclient.http import MediaIoBaseDownload, MediaInMemoryUpload
 
+from preprocessing import preprocess_card_image
 from document_ai_client import process_document_ai
 from schema_config import build_sheets_row
 from notion_utils import *
@@ -166,7 +167,9 @@ def handle():
     q = (
         f"'{uploads_folder_id}' in parents and trashed = false and ("
         "mimeType='image/jpeg' or mimeType='image/png' or "
-        "mimeType='image/heic' or mimeType='image/heif'"
+        "mimeType='image/heic' or mimeType='image/heif' or "
+        "mimeType='image/gif' or mimeType='image/bmp' or "
+        "mimeType='image/webp'"
         ")"
     )
 
@@ -196,13 +199,20 @@ def handle():
 
         # Process with Document AI
         try:
+            # Download original image
             file_bytes = download_drive_file_bytes(drive, fid)
+            
+            # Preprocess: crop and enhance
+            preprocessed_bytes, output_mime = preprocess_card_image(file_bytes, f.get("mimeType"))
+            
+            # Extract with Document AI
             extracted_data = process_document_ai(
-                file_bytes=file_bytes,
+                file_bytes=preprocessed_bytes,
                 project_id=docai_project_id,
                 location=docai_location,
                 processor_id=docai_processor_id,
-                processor_version_id=docai_version_id
+                processor_version_id=docai_version_id,
+                mime_type=output_mime
             )
             
             # Build row from extracted data
@@ -337,22 +347,8 @@ def handle():
 
                 if thumbnails_folder_id:
                     try:
-                        mime = (f.get("mimeType") or "").lower()
-                        name_lower = (name or "").lower()
-                        is_heic = mime in ("image/heic", "image/heif") or name_lower.endswith((".heic", ".heif"))
-
-                        if is_heic:
-                            cover_failed += 1
-                            cover_errors.append({
-                                "file_id": fid,
-                                "page_id": page_id,
-                                "error": "HEIC files do not support Notion cover in this pipeline. Upload JPEG to enable cover.",
-                                "mimeType": mime,
-                                "file_name": name,
-                            })
-                            # Skip thumbnail + cover for HEIC
-                            continue
-                        source_bytes = download_drive_file_bytes(drive, fid)
+                        # Use the PREPROCESSED image for thumbnail (not original)
+                        source_bytes = preprocessed_bytes
 
                         # 2) Compress + upload thumbnail
                         thumb_jpeg = compress_to_jpeg_under_kb(source_bytes, max_kb=300)
