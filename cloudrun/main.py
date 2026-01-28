@@ -10,7 +10,7 @@ from PIL import ImageOps
 from googleapiclient.http import MediaIoBaseDownload, MediaInMemoryUpload
 
 from document_ai_client import process_document_ai
-from schema_config import build_sheets_row, get_sheets_headers
+from schema_config import build_sheets_row
 from notion_utils import *
 from sheets_utils import *
 
@@ -179,21 +179,19 @@ def handle():
 
     files = resp.get("files", [])
 
-    # --- Sheets de-dup + append ---
+# --- Sheets de-dup + append/update ---
     sheets = sheets_client()
     ensure_header_with_schema(sheets, sheet_id, sheet_tab)
-    existing_ids = get_existing_file_ids(sheets, sheet_id, sheet_tab)
+    existing_khadde = get_existing_khadde_ids(sheets, sheet_id, sheet_tab)
 
     new_rows = []
+    updated_rows = []
     new_files_for_rows = []
     skipped_existing = 0
 
     for f in files:
         fid = f.get("id", "")
         if not fid:
-            continue
-        if fid in existing_ids:
-            skipped_existing += 1
             continue
 
         # Process with Document AI
@@ -204,13 +202,31 @@ def handle():
                 project_id=docai_project_id,
                 location=docai_location,
                 processor_id=docai_processor_id,
-                processor_version_id=docai_version_id  # Will be None if not set
+                processor_version_id=docai_version_id
             )
-            print(f"DEBUG - Extracted data for {fid}: {extracted_data}")
             
             # Build row from extracted data
             row = build_sheets_row(extracted_data)
-            new_rows.append(row)
+            
+            # Get Khadde value (first field in schema)
+            khadde_value = str(int(row[0])) if row[0] is not None else ""
+            
+            # ADD THESE DEBUG LINES:
+            print(f"DEBUG - Khadde value extracted: '{khadde_value}'")
+            print(f"DEBUG - Existing Khadde map: {existing_khadde}")
+            print(f"DEBUG - Is in existing? {khadde_value in existing_khadde}")
+            
+            # Check if this Khadde already exists
+            if khadde_value and khadde_value in existing_khadde:
+                # Update existing row
+                row_number = existing_khadde[khadde_value]
+                print(f"DEBUG - UPDATING row {row_number}")
+                update_row(sheets, sheet_id, sheet_tab, row_number, row)
+                updated_rows.append(khadde_value)
+            else:
+                # Append new row
+                print(f"DEBUG - APPENDING new row")
+                new_rows.append(row)
             
             # Store file metadata + extracted data for Notion
             new_files_for_rows.append({
@@ -361,7 +377,8 @@ def handle():
         "ok": True,
         "drive_count": len(files),
         "new_appended": appended,
-        "skipped_existing": skipped_existing,
+        "updated_existing": len(updated_rows),
+        "updated_khadde_values": updated_rows[:5],
         "notion_enabled": notion is not None,
         "notion_written": notion_written,
         "notion_failed": notion_failed,

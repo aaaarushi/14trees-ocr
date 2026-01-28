@@ -22,13 +22,29 @@ def ensure_header(sheets, sheet_id: str, tab_name: str):
         ).execute()
 
 
-def get_existing_file_ids(sheets, sheet_id: str, tab_name: str) -> set:
-    rng = f"{tab_name}!A2:A"
+def get_existing_khadde_ids(sheets, sheet_id: str, tab_name: str) -> dict:
+    """
+    Get existing Khadde values and their row numbers.
+    Returns dict: {khadde_value: row_number}
+    """
+    from schema_config import get_sheets_headers
+    num_cols = len(get_sheets_headers())
+    last_col = chr(64 + num_cols)
+    
+    rng = f"{tab_name}!A2:{last_col}"  # Get all data starting from row 2
     resp = sheets.spreadsheets().values().get(
         spreadsheetId=sheet_id, range=rng
     ).execute()
     values = resp.get("values", [])
-    return {row[0] for row in values if row and row[0]}
+    
+    # Build dict of khadde -> row number
+    khadde_map = {}
+    for idx, row in enumerate(values):
+        if row and row[0]:  # First column is Khadde
+            khadde_value = str(row[0])
+            khadde_map[khadde_value] = idx + 2  # +2 because row 1 is header, idx is 0-based
+    
+    return khadde_map
 
 
 def append_rows(sheets, sheet_id: str, tab_name: str, rows: list) -> int:
@@ -48,6 +64,7 @@ def append_rows(sheets, sheet_id: str, tab_name: str, rows: list) -> int:
         body={"values": rows},
     ).execute()
     return len(rows)
+
 
 def ensure_header_with_schema(sheets, sheet_id: str, tab_name: str):
     """Ensure headers match the extraction schema"""
@@ -69,3 +86,21 @@ def ensure_header_with_schema(sheets, sheet_id: str, tab_name: str):
             valueInputOption="RAW",
             body={"values": [headers]},
         ).execute()
+
+
+def update_row(sheets, sheet_id: str, tab_name: str, row_number: int, row_data: list):
+    """
+    Update an existing row at the specified row number.
+    """
+    from schema_config import get_sheets_headers
+    num_cols = len(get_sheets_headers())
+    last_col = chr(64 + num_cols)
+    
+    rng = f"{tab_name}!A{row_number}:{last_col}{row_number}"
+    
+    sheets.spreadsheets().values().update(
+        spreadsheetId=sheet_id,
+        range=rng,
+        valueInputOption="RAW",
+        body={"values": [row_data]},
+    ).execute()
