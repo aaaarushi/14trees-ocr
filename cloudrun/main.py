@@ -257,14 +257,13 @@ def handle():
             drive_link = f.get("webViewLink", "")
 
             try:
-                # 1) Create Notion page first
-                page_id = create_notion_row(
+                # 1) Create Notion page from extracted data
+                extracted_data = f.get("extracted_data", {})
+                
+                page_id = create_notion_row_from_extraction(
                     notion,
                     notion_db_id,
-                    fid,
-                    name,
-                    created_time,
-                    drive_link,
+                    extracted_data
                 )
                 notion_written += 1
 

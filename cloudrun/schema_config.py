@@ -50,18 +50,12 @@ class SchemaField:
             except (ValueError, TypeError):
                 return {"number": None}
         elif self.field_type == FieldType.CHECKBOX:
-            # Handle various checkbox representations
+            # Convert various truthy values to boolean
             if isinstance(value, bool):
-                return value
+                return {"checkbox": value}
             if isinstance(value, str):
-                value_lower = value.lower().strip()
-                if value_lower in ("true", "yes", "1", "checked", "✓", "✔", "x"):
-                    return True
-                if value_lower in ("false", "no", "0", "unchecked", ""):
-                    return False
-                # If it's any other non-empty string, consider it checked
-                return True
-            return bool(value)
+                return {"checkbox": value.lower() in ("true", "yes", "1", "checked", "✓", "✔", "x")}
+            return {"checkbox": bool(value)}
     
     def format_value_for_sheets(self, value: Any) -> Any:
         """Format extracted value for Google Sheets"""
@@ -80,7 +74,7 @@ class SchemaField:
             if isinstance(value, bool):
                 return value
             if isinstance(value, str):
-                return value.lower() in ("true", "yes", "1", "checked")
+                return value.lower() in ("true", "yes", "1", "checked", "✓", "✔", "x")
             return bool(value)
 
 
