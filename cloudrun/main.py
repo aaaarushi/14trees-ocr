@@ -247,13 +247,41 @@ def handle():
 
     appended = append_rows(sheets, sheet_id, sheet_tab, new_rows)
 
-    # --- Notion write (only for appended rows) ---
+# --- Notion write/update ---
     notion_written = 0
+    notion_updated = 0
     notion_failed = 0
     notion_errors = []
 
     notion, notion_db_id = notion_client()
-    to_write = new_files_for_rows[:appended]
+    
+    # Get existing Notion pages by Khadde
+    existing_notion_khadde = {}
+    if notion is not None:
+        try:
+            existing_notion_khadde = get_existing_notion_khadde_ids(notion, notion_db_id)
+            print(f"DEBUG - Existing Notion Khadde map: {existing_notion_khadde}")
+        except Exception as e:
+            print(f"Failed to get existing Notion pages: {e}")
+    
+    to_write = new_files_for_rows# --- Notion write/update ---
+    notion_written = 0
+    notion_updated = 0
+    notion_failed = 0
+    notion_errors = []
+
+    notion, notion_db_id = notion_client()
+    
+    # Get existing Notion pages by Khadde
+    existing_notion_khadde = {}
+    if notion is not None:
+        try:
+            existing_notion_khadde = get_existing_notion_khadde_ids(notion, notion_db_id)
+            print(f"DEBUG - Existing Notion Khadde map: {existing_notion_khadde}")
+        except Exception as e:
+            print(f"Failed to get existing Notion pages: {e}")
+    
+    to_write = new_files_for_rows
 
     thumb_created = 0
     thumb_failed = 0
@@ -269,19 +297,43 @@ def handle():
         for f in to_write:
             fid = f["id"]
             name = f.get("name", "")
-            created_time = f.get("createdTime", "")
-            drive_link = f.get("webViewLink", "")
+            extracted_data = f.get("extracted_data", {})
+            
+            if not extracted_data:
+                continue
 
             try:
-                # 1) Create Notion page from extracted data
-                extracted_data = f.get("extracted_data", {})
+                # Get Khadde value from extracted data
+                khadde_data = extracted_data.get("serial_number", {})
+                khadde_value = khadde_data.get("value")
                 
-                page_id = create_notion_row_from_extraction(
-                    notion,
-                    notion_db_id,
-                    extracted_data
-                )
-                notion_written += 1
+                if khadde_value is not None:
+                    # Normalize to string without decimal
+                    if isinstance(khadde_value, float) and khadde_value == int(khadde_value):
+                        khadde_value = str(int(khadde_value))
+                    else:
+                        khadde_value = str(khadde_value)
+                else:
+                    khadde_value = ""
+                
+                print(f"DEBUG - Notion Khadde value: '{khadde_value}'")
+                
+                # Check if page exists
+                if khadde_value and khadde_value in existing_notion_khadde:
+                    # Update existing page
+                    page_id = existing_notion_khadde[khadde_value]
+                    print(f"DEBUG - UPDATING Notion page {page_id}")
+                    update_notion_page_from_extraction(notion, page_id, extracted_data)
+                    notion_updated += 1
+                else:
+                    # Create new page
+                    print(f"DEBUG - CREATING new Notion page")
+                    page_id = create_notion_row_from_extraction(
+                        notion,
+                        notion_db_id,
+                        extracted_data
+                    )
+                    notion_written += 1
 
                 if thumbnails_folder_id:
                     try:
@@ -381,6 +433,7 @@ def handle():
         "updated_khadde_values": updated_rows[:5],
         "notion_enabled": notion is not None,
         "notion_written": notion_written,
+        "notion_updated": notion_updated,
         "notion_failed": notion_failed,
         "notion_errors_sample": notion_errors[:5],
         "moved_to_processed": moved,

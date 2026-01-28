@@ -58,3 +58,63 @@ def create_notion_row_from_extraction(notion, notion_db_id: str, extracted_data:
     )
     
     return page["id"]
+
+def get_existing_notion_khadde_ids(notion, notion_db_id: str) -> dict:
+    """
+    Get existing Khadde values and their page IDs from Notion database.
+    Returns dict: {khadde_value: page_id}
+    """
+    from schema_config import EXTRACTION_SCHEMA
+    
+    # Get the display name of the first field (Khadde)
+    khadde_display_name = EXTRACTION_SCHEMA[0].display_name
+    
+    khadde_map = {}
+    
+    # Query all pages in the database
+    has_more = True
+    start_cursor = None
+    
+    while has_more:
+        query_params = {"database_id": notion_db_id}
+        if start_cursor:
+            query_params["start_cursor"] = start_cursor
+        
+        results = notion.databases.query(**query_params)
+        
+        for page in results["results"]:
+            properties = page["properties"]
+            
+            # Get Khadde value
+            if khadde_display_name in properties:
+                khadde_prop = properties[khadde_display_name]
+                
+                # Extract value based on property type (should be number)
+                if khadde_prop["type"] == "number" and khadde_prop["number"] is not None:
+                    khadde_value = str(int(khadde_prop["number"]))
+                    page_id = page["id"]
+                    khadde_map[khadde_value] = page_id
+        
+        has_more = results["has_more"]
+        start_cursor = results.get("next_cursor")
+    
+    return khadde_map
+
+
+def update_notion_page_from_extraction(notion, page_id: str, extracted_data: dict):
+    """
+    Update an existing Notion page with new extracted data.
+    
+    Args:
+        notion: Notion client instance
+        page_id: Notion page ID to update
+        extracted_data: Dict from Document AI
+    """
+    from schema_config import build_notion_properties
+    
+    properties = build_notion_properties(extracted_data)
+    
+    notion.pages.update(
+        page_id=page_id,
+        properties=properties,
+    )
