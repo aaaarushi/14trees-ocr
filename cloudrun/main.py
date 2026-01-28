@@ -9,6 +9,8 @@ from PIL import Image
 from PIL import ImageOps
 from googleapiclient.http import MediaIoBaseDownload, MediaInMemoryUpload
 
+from document_ai_client import process_document_ai
+from schema_config import build_sheets_row, get_sheets_headers
 from notion_utils import *
 from sheets_utils import *
 
@@ -148,6 +150,15 @@ def handle():
         return jsonify({"ok": False, "error": "SHEET_ID and/or SHEET_TAB env vars not set"}), 500
     if not processed_folder_id:
         return jsonify({"ok": False, "error": "PROCESSED_FOLDER_ID env var not set"}), 500
+    
+    # NEW: Document AI env vars
+    docai_project_id = os.environ.get("DOCUMENT_AI_PROJECT_ID")
+    docai_location = os.environ.get("DOCUMENT_AI_LOCATION", "us")
+    docai_processor_id = os.environ.get("DOCUMENT_AI_PROCESSOR_ID")
+    docai_version_id = os.environ.get("DOCUMENT_AI_PROCESSOR_VERSION_ID")  # Optional, can be None
+    
+    if not docai_project_id or not docai_processor_id:
+        return jsonify({"ok": False, "error": "DOCUMENT_AI_PROJECT_ID and/or DOCUMENT_AI_PROCESSOR_ID env vars not set"}), 500
 
     drive = drive_client()
 
@@ -170,7 +181,7 @@ def handle():
 
     # --- Sheets de-dup + append ---
     sheets = sheets_client()
-    ensure_header(sheets, sheet_id, sheet_tab)
+    ensure_header_with_schema(sheets, sheet_id, sheet_tab)
     existing_ids = get_existing_file_ids(sheets, sheet_id, sheet_tab)
 
     new_rows = []
@@ -185,19 +196,37 @@ def handle():
             skipped_existing += 1
             continue
 
-        name = f.get("name", "")
-        created_time = f.get("createdTime", "")
-        drive_link = f.get("webViewLink", "")
-
-        new_rows.append([fid, name, created_time, drive_link])
-        new_files_for_rows.append({
-            "id": fid,
-            "name": name,
-            "mimeType": f.get("mimeType", ""),
-            "size": f.get("size", ""),
-            "createdTime": created_time,
-            "webViewLink": drive_link,
-        })
+        # Process with Document AI
+        try:
+            file_bytes = download_drive_file_bytes(drive, fid)
+            extracted_data = process_document_ai(
+                file_bytes=file_bytes,
+                project_id=docai_project_id,
+                location=docai_location,
+                processor_id=docai_processor_id,
+                processor_version_id=docai_version_id  # Will be None if not set
+            )
+            print(f"DEBUG - Extracted data for {fid}: {extracted_data}")
+            
+            # Build row from extracted data
+            row = build_sheets_row(extracted_data)
+            new_rows.append(row)
+            
+            # Store file metadata + extracted data for Notion
+            new_files_for_rows.append({
+                "id": fid,
+                "name": f.get("name", ""),
+                "mimeType": f.get("mimeType", ""),
+                "size": f.get("size", ""),
+                "createdTime": f.get("createdTime", ""),
+                "webViewLink": f.get("webViewLink", ""),
+                "extracted_data": extracted_data,
+            })
+            
+        except Exception as e:
+            print(f"Document AI processing failed for {fid}: {e}")
+            # Skip this file if extraction fails
+            continue
 
 
     appended = append_rows(sheets, sheet_id, sheet_tab, new_rows)

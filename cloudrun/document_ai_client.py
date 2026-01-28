@@ -6,12 +6,14 @@ from google.api_core.client_options import ClientOptions
 from google.cloud import documentai
 from schema_config import EXTRACTION_SCHEMA
 
+# THESE ARE HERE FOR TESTING PURPOSES, THEY NEED TO BE SET 
+# AS ENVIRONMENT VARIABLES IN CLOUD RUN
 # ==================== CONFIGURATION ====================
 PROJECT_ID = "artful-lane-485410-j1"
 LOCATION = "us"  # or "eu"
 PROCESSOR_ID = "4fb4e11231940dd2"
-PROCESSOR_VERSION_ID = "79cab3e5ff622e31"
-TEST_IMAGE_PATH = "test.jpg"  # Path to test image
+PROCESSOR_VERSION_ID = "e826fbbfc14d8274"
+TEST_IMAGE_PATH = "../preprocessed_cards/1943628.jpg"  # Path to test image
 FILE_TYPE = "image/jpeg"
 # =======================================================
 
@@ -21,7 +23,7 @@ def process_document_ai(
     project_id: str,
     location: str,
     processor_id: str,
-    processor_version_id: str,
+    processor_version_id: str = None,
     mime_type: str = "image/jpeg"
 ) -> dict:
     """
@@ -43,8 +45,13 @@ def process_document_ai(
     client = documentai.DocumentProcessorServiceClient(client_options=opts)
     
     # Build processor name
-    name = client.processor_version_path(project_id, location, processor_id, processor_version_id)
-    
+    if processor_version_id:
+        name = client.processor_version_path(
+            project_id, location, processor_id, processor_version_id
+        )
+    else:
+        name = client.processor_path(project_id, location, processor_id)
+
     # Create request
     raw_document = documentai.RawDocument(content=file_bytes, mime_type=mime_type)
     
@@ -106,6 +113,7 @@ if __name__ == "__main__":
             mime_type=FILE_TYPE
         )
         print("✓ API call successful")
+        print(results)
     except Exception as e:
         print(f"✗ API call failed: {e}")
         import traceback

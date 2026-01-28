@@ -110,6 +110,12 @@ The environment variables that are already preloaded include:
 - SHEET_ID: 1q2P1NMU-32EnVptP62-FRcptAMaB6PioqsAUO8FtQPY
 - SHEET_TAB: Locations
 - WEBHOOK_SECRET: 14trees-6f3f1c9a8d8a4c1bb9c0a2e6a4d2f7c1
+- DOCUMENT_AI_PROJECT_ID: artful-lane-485410-j1
+- DOCUMENT_AI_LOCATION: us
+- DOCUMENT_AI_PROCESSOR_ID: 4fb4e11231940dd2
+- DOCUMENT_AI_PROCESSOR_VERSION_ID: e826fbbfc14d8274
+
+You will have to change the DOCUMENT_AI variables if you create a new Google Cloud Document AI Custom Extractor, and you can find the IDs in the Web UI: https://console.cloud.google.com/ai/document-ai/locations/us/processors/4fb4e11231940dd2/v2/overview?authuser=2&hl=en&project=artful-lane-485410-j1
 
 You only have to redeploy with enviroment variables if you want to change them or add an environment variable.
 

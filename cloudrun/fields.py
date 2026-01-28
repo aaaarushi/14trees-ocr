@@ -43,31 +43,31 @@ FIELDS = [
         "description": "Total count of trees in the plot"
     },
     {
-        "name": "number_of_pits",
+        "name": "number_of_ponds",
         "type": "number",
         "display_name": "Total Pits",
         "description": "Total count of pits in the plot"
     },
     {
-        "name": "road_access_top_left",
+        "name": "road_access_top_left2",
         "type": "checkbox",
         "display_name": "Road Access",
         "description": "Checkbox indicator from top-left corner of document"
     },
     {
-        "name": "photo_album_top_right",
+        "name": "photo_album_top_right2",
         "type": "checkbox",
         "display_name": "Photo Album",
         "description": "Checkbox indicator from top-right corner of document"
     },
     {
-        "name": "maps_bottom_left",
+        "name": "maps_bottom_left2",
         "type": "checkbox",
         "display_name": "Location pin",
         "description": "Checkbox indicator from bottom-left corner of document"
     },
     {
-        "name": "komoot_bottom_right",
+        "name": "komoot_bottom_right2",
         "type": "checkbox",
         "display_name": "Komoot",
         "description": "Checkbox indicator from bottom-right corner of document"
