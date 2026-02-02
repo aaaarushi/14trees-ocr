@@ -1,10 +1,129 @@
-# Running scripts with Cloud Run
+# 14Trees OCR Extractor Pipeline
 
 The goal of this project was to allow a user to upload an image via a Google Form, and then run a script on this file and input the information from the photo into a Google Sheets.
 
 The general pipeline is Google Forms file upload -> triggers an App Script within Google Forms -> makes a post request to the Cloud Run which contains the Python script -> Python script analyzes the image, moves the image from an unprocessed to a processed folder, and updates the image's information in a Google Sheets.
 
 This documentation allows you to update any of these steps.
+
+## Architecture Overview
+
+The system uses **Google Cloud Document AI** for OCR extraction with the following flow:
+
+1. **Image Upload**: User uploads image via Google Form → stored in Drive uploads folder
+2. **Preprocessing**: Image is cropped and enhanced for optimal OCR
+3. **Extraction**: Document AI custom extractor pulls structured fields from the card
+4. **Data Storage**: Extracted data written to both Google Sheets and Notion database
+5. **File Management**: Processed images moved to processed folder, thumbnails generated
+
+### Key Components
+
+- **`preprocessing.py`**: Detects card border, crops, enhances contrast/sharpness for OCR
+- **`document_ai_client.py`**: Calls Document AI API to extract fields from preprocessed image
+- **`schema_config.py`**: Maps extracted fields to Sheets/Notion format
+- **`fields.py`**: Single source of truth for all extraction fields (edit this to add/remove fields)
+- **`main.py`**: Orchestrates the entire pipeline
+
+## Document AI Extraction
+
+The system uses a **custom Document AI extractor** to pull structured data from card images. The extractor is trained on labeled examples and returns confidence scores for each field.
+
+### Preprocessing Pipeline
+
+Before extraction, images go through:
+1. **Border detection**: Adaptive thresholding finds card outline (handles various backgrounds)
+2. **Cropping**: Removes background, focuses on card content
+3. **Enhancement**: Boosts contrast (1.3x), sharpness (1.5x), brightness (1.1x)
+4. **Resize**: Scales to max 1600px for optimal Document AI performance
+
+All preprocessing happens in `preprocessing.py` using PIL and OpenCV. The preprocessed image (not the original) is sent to Document AI and used for thumbnails.
+
+### Configuring Extraction Fields
+
+**All fields are defined in `cloudrun/fields.py`**. This is the single source of truth—edit this file to add/remove/reorder fields across the entire system.
+
+Example field definition:
+```python
+{
+    "name": "serial_number",              # Must match Document AI extractor
+    "type": "number",                     # text, number, or checkbox
+    "display_name": "Khadde",             # Column name in Sheets/Notion
+    "description": "Unique identifier"
+}
+```
+
+Field types:
+- `text`: String values (supports Devanagari script)
+- `number`: Numeric values
+- `checkbox`: Boolean indicators
+
+Field order in `fields.py` determines column order in Sheets and property order in Notion.
+
+### Managing the Document AI Extractor
+
+The Document AI processor lives in Google Cloud Console at:
+https://console.cloud.google.com/ai/document-ai/locations/us/processors/4fb4e11231940dd2
+
+**To add/modify extracted fields:**
+1. Go to Document AI processor → "Edit Schema" → Add/modify field labels
+2. Upload labeled training examples showing new fields
+3. Retrain the model version
+4. Update `cloudrun/fields.py` to match new schema
+5. Redeploy Cloud Run with new processor version ID (see environment variables section)
+
+Current processor uses version `e826fbbfc14d8274`. You can create new versions without breaking production by training separately, then updating `DOCUMENT_AI_PROCESSOR_VERSION_ID` when ready.
+
+## Google Sheets Integration
+
+Extracted data automatically populates Google Sheets with deduplication:
+- **Headers**: Generated from `fields.py` display names
+- **New records**: Appended as new rows
+- **Existing records**: Updated in-place (matched by Khadde/serial_number)
+
+The system reads existing Khadde values, checks each new extraction, and either updates the matching row or appends a new one. Headers are auto-created if missing.
+
+## Notion Integration
+
+Data syncs to Notion database with the same deduplication logic:
+- **Properties**: Auto-mapped from `fields.py` (text → rich_text, number → number, checkbox → checkbox)
+- **Cover images**: Compressed thumbnails from preprocessed images (<300KB)
+- **Title field**: `plot_name` is marked as `is_notion_title: True` in `fields.py`
+
+Notion pages are created/updated based on Khadde matching. The first field in `fields.py` is used as the unique identifier.
+
+**Setting up Notion:**
+1. Create integration at https://www.notion.so/my-integrations
+2. Copy API key to `NOTION_API_KEY` environment variable
+3. Share your database with the integration
+4. Copy database ID to `NOTION_DATABASE_ID`
+5. Manually create properties in Notion matching your `fields.py` display names and types
+
+## Quick Start for Common Tasks
+
+### Adding a new extraction field
+1. Add field to Document AI processor in Cloud Console
+2. Add to `cloudrun/fields.py`:
+   ```python
+   {
+       "name": "tree_species",           # Match Document AI exactly
+       "type": "text",                   # text, number, or checkbox
+       "display_name": "Species"         # Sheets/Notion column name
+   }
+   ```
+3. Redeploy Cloud Run (see deployment section below)
+4. Field automatically appears in Sheets and Notion on next upload
+
+### Modifying preprocessing
+Edit `cloudrun/preprocessing.py`:
+- Adjust crop sensitivity: `_detect_card_border_adaptive()` parameters
+- Change enhancement: `_enhance_for_ocr()` contrast/sharpness values
+- Modify resize limit: `_resize_if_needed()` target_size parameter
+
+### Testing Document AI locally
+```bash
+cd cloudrun
+python document_ai_client.py  # Uses test image and prints extracted fields
+```
 
 ## Updating the file in Cloud Run
 
